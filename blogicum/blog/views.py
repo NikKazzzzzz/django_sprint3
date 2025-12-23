@@ -2,32 +2,27 @@ from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
 from .models import Post, Category
 
-
-def index(request):
-    template = 'blog/index.html'
-    post_list = Post.objects.select_related(
+def get_published_posts():
+    return Post.objects.select_related(
         'category', 'author', 'location'
     ).filter(
         is_published=True,
         category__is_published=True,
         pub_date__lte=timezone.now()
-    )[:5]
-    context = {'post_list': post_list}
-    return render(request, template, context)
+    )
 
+def index(request):
+    template = 'blog/index.html'
+    post_list = get_published_posts()[:5]
+    return render(request, template, {'post_list': post_list})
 
 def post_detail(request, id):
     template = 'blog/detail.html'
     post = get_object_or_404(
-        Post.objects.select_related('category', 'author', 'location'),
-        id=id,
-        is_published=True,
-        category__is_published=True,
-        pub_date__lte=timezone.now()
+        get_published_posts(),
+        id=id
     )
-    context = {'post': post}
-    return render(request, template, context)
-
+    return render(request, template, {'post': post})
 
 def category_posts(request, category_slug):
     template = 'blog/category.html'
@@ -36,15 +31,17 @@ def category_posts(request, category_slug):
         slug=category_slug,
         is_published=True
     )
-    post_list = Post.objects.select_related(
-        'category', 'author', 'location'
-    ).filter(
-        category=category,
+
+    post_list = category.posts.filter(
         is_published=True,
         pub_date__lte=timezone.now()
+    ).select_related(
+        'author', 'location'
     )
-    context = {
-        'category': category,
-        'post_list': post_list
-    }
-    return render(request, template, context)
+
+    return render(
+        request,
+        template,
+        {'category': category, 'post_list': post_list}
+    )
+
